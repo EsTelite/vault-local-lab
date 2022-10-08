@@ -1,0 +1,54 @@
+version: "3"
+
+output: prefixed
+
+tasks:
+  install-dependencies:
+    desc: Installing dependencies for localstack
+    cmds:
+      - sudo add-apt-repository ppa:deadsnakes/ppa --yes
+      - sudo apt update && sudo apt install software-properties-common wget gpg unzip socat -y
+      - wget -O get-pip.py https://bootstrap.pypa.io/get-pip.py
+      - python3 get-pip.py
+      - sudo usermod -aG docker vagrant
+
+  install-localstack:
+    desc: Install localstack with additional tools
+    cmds:
+      - python3 -m pip install localstack
+      - curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+      - unzip -o awscliv2.zip
+      - sudo ./aws/install
+      - rm -rf aws
+      - python3 -m pip install awscli-local
+      - python3 -m pip install pyOpenSSL --upgrade
+
+  start-localstack:
+    desc: Start localstack server
+    cmds:
+      - localstack start
+
+  install-vault:
+    desc: install vault
+    cmds:
+      - wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor | sudo tee /usr/share/keyrings/hashicorp-archive-keyring.gpg >/dev/null
+      - echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+      - sudo apt update && sudo apt install vault
+
+  start-vault:
+    desc: Start vault dev
+    cmds:
+      - socat TCP-LISTEN:8299,fork,reuseaddr TCP:localhost:8200 &
+      - vault server -dev
+
+  install-all:
+    desc: Setup and configure all dependencies
+    cmds:
+      - task: install-dependencies
+      - task: install-vault
+      - task: install-localstack
+
+  set-cli-environment-variable:
+    desc: Set CLI environment variable
+    cmds:
+      - export VAULT_ADDR='http://127.0.0.1:8200'
